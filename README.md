@@ -4,6 +4,12 @@
 [Hyprland](https://hyprland.org).
 
 
+## Features
+
+- Move to a workspace, and if it's on another monitor, swap the two workspace's
+assigned monitors.
+
+
 ## Installation
 
 ```sh
