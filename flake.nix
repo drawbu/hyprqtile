@@ -10,6 +10,7 @@
       system:
       let
         pkgs = inputs.nixpkgs.legacyPackages.${system};
+        rev = if pkgs.lib.hasAttr "rev" self then self.shortRev else self.dirtyShortRev;
       in
       {
         formatter = pkgs.nixfmt-rfc-style;
@@ -33,6 +34,7 @@
             pname = "hyprqtile";
             version = "0.1.0";
             src = ./.;
+            env.GIT_REV = rev;
             cargoLock.lockFile = ./Cargo.lock;
           };
         };

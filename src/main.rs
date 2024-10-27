@@ -62,6 +62,16 @@ fn main() -> anyhow::Result<()> {
     let args = cli::parse();
     cli::log(&format!("args: {:#?}", args));
 
+    if args.version {
+        println!(
+            "{} {} {}",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+            std::option_env!("GIT_REV").unwrap_or("unknown")
+        );
+        return Ok(());
+    }
+
     match &args.command {
         Some(cli::Commands::Move { target }) => move_to_workspace(*target)?,
         None => bail!("No command provided"),

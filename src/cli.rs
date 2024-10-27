@@ -8,6 +8,10 @@ pub struct Args {
     /// Print debugging information
     #[arg(long, default_value_t = false, hide = true)]
     verbose: bool,
+
+    /// Show version & git build revision
+    #[arg(long, short, default_value_t = false)]
+    pub version: bool
 }
 
 #[derive(Subcommand, Debug)]
