@@ -13,9 +13,7 @@ pub struct Args {
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Move current window to a workspace
-    Move {
-        target: i32,
-    },
+    Move { target: i32 },
 }
 
 /// Log information with --verbose
