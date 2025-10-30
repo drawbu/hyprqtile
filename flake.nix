@@ -1,43 +1,40 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    utils.url = "github:numtide/flake-utils";
   };
 
   outputs =
     { self, ... }@inputs:
-    inputs.utils.lib.eachDefaultSystem (
-      system:
-      let
-        pkgs = inputs.nixpkgs.legacyPackages.${system};
-        rev = if pkgs.lib.hasAttr "rev" self then self.shortRev else self.dirtyShortRev;
-      in
-      {
-        formatter = pkgs.nixfmt-rfc-style;
+    let
+      forAllSystems =
+        function:
+        inputs.nixpkgs.lib.genAttrs [
+          "x86_64-linux"
+          "aarch64-linux"
+        ] (system: function (import inputs.nixpkgs { inherit system; }));
+    in
+    {
+      formatter = forAllSystems (pkgs: pkgs.nixfmt-tree);
 
-        devShells.default = pkgs.mkShell {
-          inputsFrom = builtins.attrValues self.packages.${system};
-          env = rec {
+      devShells = forAllSystems (pkgs: {
+        default = pkgs.mkShell {
+          inputsFrom = builtins.attrValues self.packages.${pkgs.system};
+          env = {
             RUST_LOG = "info";
-            RUSTC_VERSION = pkgs.rustc.version;
-            RUSTUP_TOOLCHAIN = RUSTC_VERSION;
+            RUSTUP_TOOLCHAIN = pkgs.rustc.version;
           };
-          packages = with pkgs; [
-            rust-analyzer
-            clippy
-          ];
+          packages = with pkgs; [ rustup ];
         };
+      });
 
-        packages = {
-          default = self.packages.${system}.hyprqtile;
-          hyprqtile = pkgs.rustPlatform.buildRustPackage {
-            pname = "hyprqtile";
-            version = "0.1.0";
-            src = ./.;
-            env.GIT_REV = rev;
-            cargoLock.lockFile = ./Cargo.lock;
-          };
+      packages = forAllSystems (pkgs: {
+        default = self.packages.${pkgs.system}.hyprqtile;
+        hyprqtile = pkgs.rustPlatform.buildRustPackage {
+          name = "hyprqtile";
+          src = ./.;
+          env.GIT_REV = self.rev or self.dirtyShortRev;
+          cargoLock.lockFile = ./Cargo.lock;
         };
-      }
-    );
+      });
+    };
 }
