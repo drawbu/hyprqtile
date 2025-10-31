@@ -14,16 +14,6 @@
         ] (system: function (import inputs.nixpkgs { inherit system; }));
     in
     {
-      formatter = forAllSystems (pkgs: pkgs.nixfmt-tree);
-
-      devShells = forAllSystems (pkgs: {
-        default = pkgs.mkShell {
-          inputsFrom = builtins.attrValues self.packages.${pkgs.system};
-          env.RUSTUP_TOOLCHAIN = pkgs.rustc.version;
-          packages = with pkgs; [ rustup ];
-        };
-      });
-
       packages = forAllSystems (pkgs: {
         default = self.packages.${pkgs.system}.hyprqtile;
         hyprqtile = pkgs.rustPlatform.buildRustPackage {
@@ -33,5 +23,19 @@
           cargoLock.lockFile = ./Cargo.lock;
         };
       });
+
+      overlays.default = final: prev: {
+        inherit (self.packages.${final.system}) hyprqtile;
+      };
+
+      devShells = forAllSystems (pkgs: {
+        default = pkgs.mkShell {
+          inputsFrom = builtins.attrValues self.packages.${pkgs.system};
+          env.RUSTUP_TOOLCHAIN = pkgs.rustc.version;
+          packages = with pkgs; [ rustup ];
+        };
+      });
+
+      formatter = forAllSystems (pkgs: pkgs.nixfmt-tree);
     };
 }

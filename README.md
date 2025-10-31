@@ -31,24 +31,12 @@ bind=SUPER shift, 3, exec, hyprqtile move 3
 ...
 ```
 
-If you use home-manager with nix, you can install it
+If you use Nix to define your system, you can install it with the default overlay
 ```nix
-# flake.nix
 {
-  inputs.nixpkgs.url = "nixpkgs/nixos-unstable";
-  inputs.hyprqtile.url = "github:drawbu/hyprqtile";
-  # this line assume that you also have nixpkgs as an input
-  inputs.hyprqtile.inputs.nixpkgs.follows = "nixpkgs";
-
-  outputs = { nixpkgs, hyprqtile, ... }: {
-    # replace `myhostname` with your actual hostname
-    nixosConfigurations.myhostname = nixpkgs.lib.nixosSystem rec {
-      system = "x86_64-linux";
-      extraSpecialArgs = {
-        inherit (hyprqtile.packages.${system}) hyprqtile;
-      };
-    };
-  };
+  nixpkgs.overlays = [
+    hyprqtile.overlays.default
+  ];
 }
 ```
 
