@@ -12,7 +12,12 @@ pub struct Args {
 
 #[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Move current window to a workspace
+    /// Move target workspace to active monitor. Use the postion of the mouse
+    /// to determine the active monitor.
+    ///
+    /// If the target is not on the active monitor, it will be moved to the
+    /// active monitor. If the target workspace is the primary active, it will
+    /// be swapped with the active workspace.
     Move { target: i32 },
 }
 

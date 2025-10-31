@@ -8,9 +8,9 @@ use hyprland::{
     dispatch::{MonitorIdentifier, WorkspaceIdentifierWithSpecial},
 };
 
-/// Move window to a workspace
+/// Move target workspace in foreground of the active monitor.
 ///
-/// If there the workspace is active on a window, switch the two windows
+/// See [`cli::Commands::Move`] for details.
 #[tracing::instrument]
 fn move_to_workspace(workspace_id: i32) -> anyhow::Result<()> {
     let workspaces = Workspaces::get()?;
