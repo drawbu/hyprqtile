@@ -11,30 +11,31 @@ use hyprland::{
 /// Move window to a workspace
 ///
 /// If there the workspace is active on a window, switch the two windows
+#[tracing::instrument]
 fn move_to_workspace(workspace_id: i32) -> anyhow::Result<()> {
     let workspaces = Workspaces::get()?;
-    println!("workspaces: {:#?}", workspaces);
     let target = match workspaces.iter().find(|w| w.id == workspace_id) {
         Some(w) => w,
         None => {
-            cli::log(&format!("move to inactive workspace {:#?}", workspace_id));
+            tracing::debug!("Workspace is not active");
             hyprland::dispatch!(Workspace, WorkspaceIdentifierWithSpecial::Id(workspace_id))?;
             return Ok(());
         }
     };
-    cli::log(&format!("move to active workspace {:#?}", target));
+
+    tracing::debug!("Workspace is active");
 
     let Some(monitor_id) = target.monitor_id else {
         anyhow::bail!("Workspace is not on any monitor");
     };
 
     if monitor_id == Monitor::get_active()?.id {
-        cli::log("Moving to a workspace on the active monitor");
+        tracing::debug!("Workspace is already on the active monitor");
         hyprland::dispatch!(Workspace, WorkspaceIdentifierWithSpecial::Id(target.id))?;
         return Ok(());
     }
 
-    cli::log("Workspace is not on the active monitor");
+    tracing::debug!("Workspace is not on the active monitor",);
 
     let snd_monitor = Monitors::get()?
         .into_iter()
@@ -42,7 +43,7 @@ fn move_to_workspace(workspace_id: i32) -> anyhow::Result<()> {
         .ok_or_else(|| anyhow::anyhow!("Should not have happend: no other monitor"))?;
 
     if snd_monitor.active_workspace.id == target.id {
-        cli::log("Swaping active workspaces");
+        tracing::debug!("Swaping active workspaces");
         hyprland::dispatch!(
             SwapActiveWorkspaces,
             MonitorIdentifier::Current,
@@ -51,7 +52,7 @@ fn move_to_workspace(workspace_id: i32) -> anyhow::Result<()> {
         return Ok(());
     }
 
-    cli::log("Workspace is not the primary on the second monitor");
+    tracing::debug!("Workspace is not the primary on the second monitor");
     hyprland::dispatch!(
         MoveWorkspaceToMonitor,
         WorkspaceIdentifier::Id(target.id),
@@ -64,7 +65,9 @@ fn move_to_workspace(workspace_id: i32) -> anyhow::Result<()> {
 
 fn main() -> anyhow::Result<()> {
     let args = cli::parse();
-    cli::log(&format!("args: {:#?}", args));
+    tracing_subscriber::fmt::init();
+
+    tracing::debug!("args: {:?}", args);
 
     if args.version {
         println!(
