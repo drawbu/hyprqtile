@@ -5,7 +5,7 @@ use hyprland::dispatch::WorkspaceIdentifier;
 use hyprland::shared::{HyprData, HyprDataActive};
 use hyprland::{
     data::{Monitor, Monitors, Workspaces},
-    dispatch::{Dispatch, DispatchType, MonitorIdentifier, WorkspaceIdentifierWithSpecial},
+    dispatch::{MonitorIdentifier, WorkspaceIdentifierWithSpecial},
 };
 
 /// Move window to a workspace
@@ -24,7 +24,11 @@ fn move_to_workspace(workspace_id: i32) -> anyhow::Result<()> {
     };
     cli::log(&format!("move to active workspace {:#?}", target));
 
-    if target.monitor_id == Monitor::get_active()?.id {
+    let Some(monitor_id) = target.monitor_id else {
+        anyhow::bail!("Workspace is not on any monitor");
+    };
+
+    if monitor_id == Monitor::get_active()?.id {
         cli::log("Moving to a workspace on the active monitor");
         hyprland::dispatch!(Workspace, WorkspaceIdentifierWithSpecial::Id(target.id))?;
         return Ok(());
@@ -34,7 +38,7 @@ fn move_to_workspace(workspace_id: i32) -> anyhow::Result<()> {
 
     let snd_monitor = Monitors::get()?
         .into_iter()
-        .find(|m| m.id == target.monitor_id)
+        .find(|m| m.id == monitor_id)
         .ok_or_else(|| anyhow::anyhow!("Should not have happend: no other monitor"))?;
 
     if snd_monitor.active_workspace.id == target.id {
@@ -42,7 +46,7 @@ fn move_to_workspace(workspace_id: i32) -> anyhow::Result<()> {
         hyprland::dispatch!(
             SwapActiveWorkspaces,
             MonitorIdentifier::Current,
-            MonitorIdentifier::Id(target.monitor_id)
+            MonitorIdentifier::Id(monitor_id)
         )?;
         return Ok(());
     }
