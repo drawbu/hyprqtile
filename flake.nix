@@ -19,10 +19,7 @@
       devShells = forAllSystems (pkgs: {
         default = pkgs.mkShell {
           inputsFrom = builtins.attrValues self.packages.${pkgs.system};
-          env = {
-            RUST_LOG = "info";
-            RUSTUP_TOOLCHAIN = pkgs.rustc.version;
-          };
+          env.RUSTUP_TOOLCHAIN = pkgs.rustc.version;
           packages = with pkgs; [ rustup ];
         };
       });
@@ -32,7 +29,7 @@
         hyprqtile = pkgs.rustPlatform.buildRustPackage {
           name = "hyprqtile";
           src = ./.;
-          env.GIT_REV = self.rev or self.dirtyShortRev;
+          env.BUILD_REV = "${self.rev or self.dirtyShortRev}-git";
           cargoLock.lockFile = ./Cargo.lock;
         };
       });

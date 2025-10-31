@@ -1,6 +1,5 @@
 mod cli;
 
-use anyhow::bail;
 use hyprland::dispatch::WorkspaceIdentifier;
 use hyprland::shared::{HyprData, HyprDataActive};
 use hyprland::{
@@ -13,46 +12,42 @@ use hyprland::{
 /// See [`cli::Commands::Move`] for details.
 #[tracing::instrument]
 fn move_to_workspace(workspace_id: i32) -> anyhow::Result<()> {
-    let workspaces = Workspaces::get()?;
-    let target = match workspaces.iter().find(|w| w.id == workspace_id) {
-        Some(w) => w,
-        None => {
-            tracing::debug!("Workspace is not active");
-            hyprland::dispatch!(Workspace, WorkspaceIdentifierWithSpecial::Id(workspace_id))?;
+    let Some(target) = Workspaces::get()?
+        .into_iter()
+        .find(|w| w.id == workspace_id)
+    else {
+        tracing::debug!("Workspace is not currently used");
+        hyprland::dispatch!(Workspace, WorkspaceIdentifierWithSpecial::Id(workspace_id))?;
+        return Ok(());
+    };
+
+    tracing::debug!("Workspace is used");
+
+    if let Some(monitor_id) = target.monitor_id {
+        if monitor_id == Monitor::get_active()?.id {
+            tracing::debug!("Workspace is already on the active monitor");
+            hyprland::dispatch!(Workspace, WorkspaceIdentifierWithSpecial::Id(target.id))?;
+            return Ok(());
+        }
+
+        tracing::debug!("Workspace is not on the active monitor");
+
+        // Workspace is the active one on the other monitor. No need to move,
+        // just swap. If it not, the target's monitor is irrelevant
+        if let Some(snd_monitor) = Monitors::get()?.into_iter().find(|m| m.id == monitor_id)
+            && snd_monitor.active_workspace.id == target.id
+        {
+            tracing::debug!("Both workspaces are actives. Swaping places");
+            hyprland::dispatch!(
+                SwapActiveWorkspaces,
+                MonitorIdentifier::Current,
+                MonitorIdentifier::Id(monitor_id)
+            )?;
             return Ok(());
         }
     };
 
-    tracing::debug!("Workspace is active");
-
-    let Some(monitor_id) = target.monitor_id else {
-        anyhow::bail!("Workspace is not on any monitor");
-    };
-
-    if monitor_id == Monitor::get_active()?.id {
-        tracing::debug!("Workspace is already on the active monitor");
-        hyprland::dispatch!(Workspace, WorkspaceIdentifierWithSpecial::Id(target.id))?;
-        return Ok(());
-    }
-
-    tracing::debug!("Workspace is not on the active monitor",);
-
-    let snd_monitor = Monitors::get()?
-        .into_iter()
-        .find(|m| m.id == monitor_id)
-        .ok_or_else(|| anyhow::anyhow!("Should not have happend: no other monitor"))?;
-
-    if snd_monitor.active_workspace.id == target.id {
-        tracing::debug!("Swaping active workspaces");
-        hyprland::dispatch!(
-            SwapActiveWorkspaces,
-            MonitorIdentifier::Current,
-            MonitorIdentifier::Id(monitor_id)
-        )?;
-        return Ok(());
-    }
-
-    tracing::debug!("Workspace is not the primary on the second monitor");
+    tracing::debug!("Bringing workspace to current monitor");
     hyprland::dispatch!(
         MoveWorkspaceToMonitor,
         WorkspaceIdentifier::Id(target.id),
@@ -70,18 +65,18 @@ fn main() -> anyhow::Result<()> {
     tracing::debug!("args: {:?}", args);
 
     if args.version {
-        println!(
-            "{} {} {}",
-            env!("CARGO_PKG_NAME"),
-            env!("CARGO_PKG_VERSION"),
-            std::option_env!("GIT_REV").unwrap_or("unknown")
-        );
+        let rev = std::option_env!("BUILD_REV").unwrap_or_else(|| {
+            tracing::warn!("BUILD_REV needs to be set at compile-time");
+            "unknown"
+        });
+        println!("{} {}", env!("CARGO_PKG_NAME"), rev);
         return Ok(());
     }
 
-    match &args.command {
-        Some(cli::Commands::Move { target }) => move_to_workspace(*target)?,
-        None => bail!("No command provided"),
+    match args.command {
+        None => Err(anyhow::anyhow!("No command provided")),
+        Some(c) => match c {
+            cli::Commands::Move { target } => move_to_workspace(target),
+        },
     }
-    Ok(())
 }
